@@ -56,10 +56,20 @@ function JwtClaimsHeadersHandler:access(conf)
   end
 
   local claims = jwt.claims
+  local namespace = conf.namespaced_claims.namespace
+  local namespaced_claims_present = namespace ~= nil and namespace ~= ''
+  
   for claim_key,claim_value in pairs(claims) do
     for _,claim_pattern in pairs(conf.claims_to_include) do      
       if string.match(claim_key, "^"..claim_pattern.."$") then
-        req_set_header("X-"..claim_key, claim_value)
+        if (namespaced_claims_present and not string.match(claim_key, "^"..namespace)) or not namespaced_claims_present then
+          req_set_header("X-"..claim_key, claim_value)
+        end
+      end
+    end
+    for _,namespaced_claim_pattern in pairs(conf.namespaced_claims.claims) do      
+      if namespaced_claims_present and string.match(claim_key, "^"..namespace..namespaced_claim_pattern) then
+        req_set_header("X-"..string.gsub(claim_key, "^"..namespace, ""), claim_value)
       end
     end
   end
